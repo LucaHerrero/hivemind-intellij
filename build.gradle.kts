@@ -8,7 +8,7 @@ plugins {
 // Gradle-Version (gradle/wrapper): wie beim Tapestry-Plugin bewusst 9.7.1 – IntelliJ 2026.2 übernimmt mit
 // Gradle 9.8.x die Abhängigkeiten des main-Source-Sets nicht ins IDE-Modell.
 group = "com.herreromarcos.idea"
-version = "0.1.0"
+version = "0.1.1"
 
 repositories {
     mavenCentral()
@@ -54,6 +54,20 @@ intellijPlatform {
         id = "com.herreromarcos.idea.hivemindplugin"
         name = "HiveMind Support"
         version = project.version.toString()
+        changeNotes = """
+            <b>0.1.1</b>
+            <ul>
+              <li>Plugin logo</li>
+              <li>Gutter icon on <code>&lt;service-point&gt;</code> finds its service directly instead of scanning all services</li>
+              <li>Messages no longer depend on the system locale</li>
+              <li>Internal clean-up: duplicated code removed</li>
+            </ul>
+            <b>0.1.0</b>
+            <ul>
+              <li>First release: tool window with all services, module descriptors, validation with the HiveMind parser,
+                  references from Java and Tapestry 4</li>
+            </ul>
+        """.trimIndent()
         ideaVersion {
             sinceBuild = "243"
             untilBuild = provider { null }
