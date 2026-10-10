@@ -6,11 +6,14 @@ import com.intellij.lang.annotation.HighlightSeverity;
 import com.intellij.psi.JavaPsiFacade;
 import com.intellij.psi.PsiClass;
 import com.intellij.psi.search.GlobalSearchScope;
+import com.intellij.psi.ElementDescriptionUtil;
 import com.intellij.psi.PsiElement;
 import com.intellij.psi.PsiFile;
 import com.intellij.psi.xml.XmlAttributeValue;
 import com.intellij.psi.xml.XmlFile;
 import com.intellij.psi.xml.XmlTag;
+import com.intellij.usageView.UsageViewLongNameLocation;
+import com.intellij.usageView.UsageViewTypeLocation;
 import com.intellij.xml.XmlElementDescriptor;
 import com.herreromarcos.idea.hivemindplugin.model.HiveMindRegistry;
 import com.herreromarcos.idea.hivemindplugin.model.ServiceImplementation;
@@ -155,6 +158,19 @@ public class DescriptorSupportTest extends HiveMindTestCase {
                 </module>
                 """);
         assertPointId("Mailer", resolveAtCaret());
+    }
+
+    public void testFindUsagesDescribesPoint() {
+        configure("app2/hivemodule.xml", """
+                <module id="app2" version="1.0.0">
+                  <service-point id="Other" interface="com.example.Mailer">
+                    <invoke-factory><construct class="com.example.MailerImpl"><set-service property="m" service-id="app.Mai<caret>ler"/></construct></invoke-factory>
+                  </service-point>
+                </module>
+                """);
+        final PsiElement target = resolveAtCaret();
+        assertEquals("service point", ElementDescriptionUtil.getElementDescription(target, UsageViewTypeLocation.INSTANCE));
+        assertEquals("app.Mailer", ElementDescriptionUtil.getElementDescription(target, UsageViewLongNameLocation.INSTANCE));
     }
 
     public void testQualifiedServiceIdResolvesInOtherModule() {

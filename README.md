@@ -1,4 +1,4 @@
-# HiveMind Support für IntelliJ IDEA
+# HiveMind für IntelliJ IDEA
 
 Ein Plugin für Apache HiveMind 1.1, das Dependency-Injection-Framework hinter Tapestry 4. Es läuft ab IntelliJ IDEA 2024.3, in der Community- wie in der Ultimate-Edition. Zusammen mit dem Tapestry-4-Plugin ist es am nützlichsten, es funktioniert aber auch allein.
 

@@ -69,5 +69,5 @@ jobs:
           gh release create "${{ steps.version.outputs.tag }}" \
             build/distributions/*.zip \
             --target "${{ github.sha }}" \
-            --title "HiveMind Support ${{ steps.version.outputs.version }}" \
+            --title "HiveMind ${{ steps.version.outputs.version }}" \
             --generate-notes

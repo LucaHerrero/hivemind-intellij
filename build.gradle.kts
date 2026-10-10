@@ -8,7 +8,7 @@ plugins {
 // Gradle-Version (gradle/wrapper): wie beim Tapestry-Plugin bewusst 9.7.1 – IntelliJ 2026.2 übernimmt mit
 // Gradle 9.8.x die Abhängigkeiten des main-Source-Sets nicht ins IDE-Modell.
 group = "com.herreromarcos.idea"
-version = "0.1.2"
+version = "0.1.3"
 
 repositories {
     mavenCentral()
@@ -52,9 +52,14 @@ intellijPlatform {
 
     pluginConfiguration {
         id = "com.herreromarcos.idea.hivemindplugin"
-        name = "HiveMind Support"
+        name = "HiveMind"
         version = project.version.toString()
         changeNotes = """
+            <b>0.1.3</b>
+            <ul>
+              <li>Plugin renamed to "HiveMind"; vendor e-mail and website added</li>
+              <li>Find Usages and Rename show "service point app.Mailer" etc. again (description provider was not registered)</li>
+            </ul>
             <b>0.1.2</b>
             <ul>
               <li>Optional <code>neighbor-class</code> on <code>&lt;module&gt;</code>: resolved like any other class name,

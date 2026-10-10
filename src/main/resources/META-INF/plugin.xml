@@ -1,7 +1,7 @@
 <idea-plugin>
     <id>com.herreromarcos.idea.hivemindplugin</id>
-    <name>HiveMind Support</name>
-    <vendor>Luca Herrero Marcos</vendor>
+    <name>HiveMind</name>
+    <vendor email="luca@herreromarcos.com" url="https://github.com/LucaHerrero/hivemind-intellij">Luca Herrero Marcos</vendor>
 
     <description><![CDATA[
     Support for the <b>Apache HiveMind 1.1</b> dependency injection framework.
@@ -38,7 +38,7 @@
         <psi.referenceContributor implementation="com.herreromarcos.idea.hivemindplugin.references.HiveMindReferenceContributor"/>
         <!-- ids als Deklarationen: Find Usages, Rename, Highlight Usages -->
         <pom.declarationSearcher implementation="com.herreromarcos.idea.hivemindplugin.references.PointDeclarationSearcher"/>
-        <pom.descriptionProvider implementation="com.herreromarcos.idea.hivemindplugin.references.PointDescriptionProvider"/>
+        <elementDescriptionProvider implementation="com.herreromarcos.idea.hivemindplugin.references.PointDescriptionProvider"/>
         <!-- Validierung mit dem echten DescriptorParser von Apache HiveMind -->
         <externalAnnotator language="XML" implementationClass="com.herreromarcos.idea.hivemindplugin.validation.HiveMindDescriptorValidator"/>
         <annotator language="XML" implementationClass="com.herreromarcos.idea.hivemindplugin.highlighting.HiveMindAnnotator"/>
