@@ -1,0 +1,68 @@
+<?xml version="1.0"?>
+<!--
+  Demo für das Plugin "HiveMind Support". Ausprobieren:
+  - Toolwindow "HiveMind" (unten): alle Services aus diesem Modul und aus den JARs (hivemind, hivemind-lib, Tapestry)
+  - Strg+Klick auf ids, Klassen, Symbole, Nachrichten; Strg+Leertaste für Vorschläge
+  - Umschalt+F6 auf id="Mailer" benennt den Service überall um (auch in DemoClient.java)
+  - fehlerbeispiele.xml zeigt, was das Plugin meldet
+-->
+<module id="demo" version="1.0.0" package="com.example.demo">
+  Demo-Modul mit Services, Konfiguration und Tapestry-Anbindung.
+
+  <sub-module descriptor="fehlerbeispiele.xml"/>
+
+  <!-- Service mit BuilderFactory: Klasse relativ zum Modulpaket, Abhängigkeiten per set-service / set-configuration -->
+  <service-point id="Mailer" interface="Mailer">
+    Versendet E-Mails.
+    <invoke-factory>
+      <construct class="impl.MailerImpl">
+        <set-service property="settings" service-id="Settings"/>
+        <set-configuration property="hosts" configuration-id="Hosts"/>
+        <set property="sender" value="${demo.sender}"/>
+      </construct>
+    </invoke-factory>
+    <interceptor service-id="hivemind.LoggingInterceptor" before="*"/>
+  </service-point>
+
+  <!-- privat: nur in diesem Modul sichtbar; interface fehlt → id im Modulpaket (com.example.demo.Settings) -->
+  <service-point id="Settings" visibility="private">
+    <create-instance class="impl.SettingsImpl" model="threaded"/>
+  </service-point>
+
+  <!-- Standardimplementierung, die unten per <implementation> überschrieben wird -->
+  <service-point id="Clock" interface="Clock">
+    <create-instance class="impl.SystemClock"/>
+  </service-point>
+  <implementation service-id="Clock">
+    <create-instance class="impl.FixedClock"/>
+  </implementation>
+
+  <!-- Configuration-Point mit Schema; der Translator "object" macht executable zu einer Object-Referenz -->
+  <schema id="HostSchema">
+    <element name="host">
+      <attribute name="name" required="true"/>
+      <attribute name="port" translator="int,min=1"/>
+      <conversion class="impl.Host"/>
+    </element>
+  </schema>
+  <configuration-point id="Hosts" schema-id="HostSchema"/>
+  <contribution configuration-id="Hosts">
+    <host name="%mail.host" port="25"/>
+  </contribution>
+
+  <!-- Beiträge zu Konfigurationen von HiveMind selbst (aus hivemind-1.1.1.jar) -->
+  <contribution configuration-id="hivemind.FactoryDefaults">
+    <default symbol="demo.sender" value="noreply@example.com"/>
+  </contribution>
+  <contribution configuration-id="hivemind.EagerLoad" if="class org.apache.hivemind.Registry">
+    <load service-id="Mailer"/>
+  </contribution>
+
+  <!-- Factory aus hivemind-lib: Parameter laut deren parameters-schema -->
+  <configuration-point id="Commands"/>
+  <service-point id="Chain" interface="java.lang.Runnable">
+    <invoke-factory service-id="hivemind.lib.ChainFactory">
+      <construct configuration-id="Commands"/>
+    </invoke-factory>
+  </service-point>
+</module>

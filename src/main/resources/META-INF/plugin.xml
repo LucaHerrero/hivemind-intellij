@@ -1,0 +1,55 @@
+<idea-plugin>
+    <id>com.herreromarcos.idea.hivemindplugin</id>
+    <name>HiveMind Support</name>
+    <vendor>Luca Herrero Marcos</vendor>
+
+    <description><![CDATA[
+    Support for the <b>Apache HiveMind 1.1</b> dependency injection framework.
+    <ul>
+      <li><b>HiveMind tool window</b>: all services ("beans") of all modules – project and libraries – with interface,
+          implementation, service model and module; filter, sorting, details and navigation</li>
+      <li>Module descriptors (<code>hivemodule.xml</code> and sub-modules): bundled schema for tag/attribute completion
+          and validation</li>
+      <li>Navigation and completion for service, configuration and schema ids (<code>service-id</code>, <code>set-service</code>,
+          <code>configuration-id</code>, <code>&lt;service&gt;</code>, <code>service:</code> object providers …),
+          module ids, sub-module descriptors and class names (relative to the module package)</li>
+      <li>Contributions and factory parameters are interpreted via the translators of their schema
+          (<code>service</code>, <code>configuration</code>, <code>object</code>, <code>instance</code>, <code>class</code>, <code>resource</code>)</li>
+      <li>Find Usages and Rename for service, configuration and schema ids; substitution symbols <code>${…}</code>,
+          messages <code>%key</code>, interceptor ordering</li>
+      <li>Errors for unknown ids, duplicate service points, multiple overriding implementations, services without
+          implementation, private services used from other modules</li>
+      <li>Gutter icons: service interface / implementation class ↔ <code>&lt;service-point&gt;</code></li>
+      <li>Java: <code>registry.getService("app.Mailer", …)</code>; Tapestry 4: <code>@InjectObject("service:…")</code>
+          and <code>&lt;inject object="service:…"/&gt;</code></li>
+    </ul>
+    ]]></description>
+
+    <depends>com.intellij.modules.platform</depends>
+    <depends>com.intellij.modules.xml</depends>
+    <depends>com.intellij.java</depends>
+    <depends>com.intellij.properties</depends>
+
+    <extensions defaultExtensionNs="com.intellij">
+        <!-- Schema für hivemodule.xml (HiveMind liefert keine DTD/XSD mit) -->
+        <xml.schemaProvider implementation="com.herreromarcos.idea.hivemindplugin.xsd.HiveModuleSchemaProvider"/>
+
+        <!-- Referenzen in Deskriptoren, Java und Tapestry-Spezifikationen; Prüfungen -->
+        <psi.referenceContributor implementation="com.herreromarcos.idea.hivemindplugin.references.HiveMindReferenceContributor"/>
+        <!-- ids als Deklarationen: Find Usages, Rename, Highlight Usages -->
+        <pom.declarationSearcher implementation="com.herreromarcos.idea.hivemindplugin.references.PointDeclarationSearcher"/>
+        <pom.descriptionProvider implementation="com.herreromarcos.idea.hivemindplugin.references.PointDescriptionProvider"/>
+        <!-- Validierung mit dem echten DescriptorParser von Apache HiveMind -->
+        <externalAnnotator language="XML" implementationClass="com.herreromarcos.idea.hivemindplugin.validation.HiveMindDescriptorValidator"/>
+        <annotator language="XML" implementationClass="com.herreromarcos.idea.hivemindplugin.highlighting.HiveMindAnnotator"/>
+        <annotator language="JAVA" implementationClass="com.herreromarcos.idea.hivemindplugin.highlighting.HiveMindAnnotator"/>
+
+        <!-- Navigation -->
+        <codeInsight.lineMarkerProvider language="JAVA" implementationClass="com.herreromarcos.idea.hivemindplugin.navigation.HiveMindClassLineMarkerProvider"/>
+        <codeInsight.lineMarkerProvider language="XML" implementationClass="com.herreromarcos.idea.hivemindplugin.navigation.HiveMindDescriptorLineMarkerProvider"/>
+
+        <!-- Maske: Liste aller Services -->
+        <toolWindow id="HiveMind" anchor="bottom" icon="AllIcons.Nodes.Plugin"
+                    factoryClass="com.herreromarcos.idea.hivemindplugin.toolwindow.HiveMindToolWindowFactory"/>
+    </extensions>
+</idea-plugin>

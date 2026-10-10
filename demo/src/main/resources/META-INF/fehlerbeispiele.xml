@@ -1,0 +1,28 @@
+<?xml version="1.0"?>
+<!-- Absichtliche Fehler: so meldet das Plugin Probleme (Meldung per Maus über der Markierung) -->
+<module id="demo.fehler" version="1.0" package="com.example.demo">
+
+  <!-- Format der Version: Meldung des Original-Parsers von HiveMind ("three numbers") -->
+
+  <!-- unbekannter Service, unbekannte Klasse -->
+  <service-point id="Broken" interface="Mailer">
+    <invoke-factory>
+      <construct class="impl.GibtEsNicht">
+        <set-service property="x" service-id="demo.Unbekannt"/>
+      </construct>
+    </invoke-factory>
+  </service-point>
+
+  <!-- privater Service eines anderen Moduls -->
+  <implementation service-id="demo.Settings">
+    <create-instance class="impl.SettingsImpl"/>
+  </implementation>
+
+  <!-- Service ohne Implementierung (Warnung) -->
+  <service-point id="Leer" interface="Mailer"/>
+
+  <!-- ungültige Bedingung (Parser von HiveMind) -->
+  <contribution configuration-id="hivemind.EagerLoad" if="class and or">
+    <load service-id="demo.Mailer"/>
+  </contribution>
+</module>

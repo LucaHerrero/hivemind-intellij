@@ -1,0 +1,368 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Schema der HiveMind-1.1-Moduldeskriptoren (hivemodule.xml), geschrieben für dieses Plugin nach der offiziellen
+  Dokumentation (hivemind.apache.org/hivemind1: descriptor, rules, hivemind/BuilderFactory, hivedoc, changes).
+  Maßgeblich ist das Release 1.1.1: Elemente, Attribute und Pflichtangaben werden in ApacheReferenceTest automatisch
+  gegen DescriptorParser.properties aus hivemind-1.1.1.jar geprüft.
+  HiveMind selbst liefert weder DTD noch XSD; das Schema dient nur Completion und Validierung im Editor.
+
+  Bewusst nicht geprüft:
+  - Inhalt von <contribution>: bestimmt das Schema des Configuration-Points (das Plugin wertet dessen Translatoren aus)
+  - Parameter von <invoke-factory> und <interceptor>: bestimmt das parameters-schema der Factory. <construct> ist global
+    deklariert, weil es mehrere Factories mit eigener Bedeutung verwenden (BuilderFactory: class …; ChainFactory,
+    StrategyFactory: configuration-id; ServicePropertyFactory: service-id/property; EJBProxyFactory: home-interface …).
+    Dass die BuilderFactory class braucht, prüft das Plugin selbst.
+
+  Beschreibungen stehen als Text im Element (Doku "HiveDoc"; das frühere <description>-Element wurde in 1.0-beta-1
+  entfernt): <attribute>, <configuration-point>, <element>, <module>, <schema> und <service-point> sind daher mixed.
+-->
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" elementFormDefault="unqualified">
+
+    <xs:element name="module">
+        <xs:complexType mixed="true">
+            <xs:choice minOccurs="0" maxOccurs="unbounded">
+                <xs:element name="contribution" type="contributionType"/>
+                <xs:element name="configuration-point" type="configurationPointType"/>
+                <xs:element name="dependency" type="dependencyType"/>
+                <xs:element name="implementation" type="implementationType"/>
+                <xs:element name="service-point" type="servicePointType"/>
+                <xs:element name="schema" type="schemaType"/>
+                <xs:element name="sub-module" type="subModuleType"/>
+            </xs:choice>
+            <xs:attribute name="id" type="xs:string" use="required"/>
+            <xs:attribute name="version" type="xs:string" use="required"/>
+            <xs:attribute name="package" type="xs:string"/>
+        </xs:complexType>
+    </xs:element>
+
+    <!-- BuilderFactory-Parameter, aber auch Parameter anderer Factories (siehe oben) -->
+    <xs:element name="construct" type="constructType"/>
+
+    <!-- ============================================================ einfache Typen -->
+
+    <xs:simpleType name="visibilityType">
+        <xs:restriction base="xs:string">
+            <xs:enumeration value="public"/>
+            <xs:enumeration value="private"/>
+        </xs:restriction>
+    </xs:simpleType>
+
+    <xs:simpleType name="occursType">
+        <xs:restriction base="xs:string">
+            <xs:enumeration value="unbounded"/>
+            <xs:enumeration value="0..1"/>
+            <xs:enumeration value="1"/>
+            <xs:enumeration value="1..n"/>
+            <xs:enumeration value="none"/>
+        </xs:restriction>
+    </xs:simpleType>
+
+    <xs:simpleType name="booleanType">
+        <xs:restriction base="xs:string">
+            <xs:enumeration value="true"/>
+            <xs:enumeration value="false"/>
+        </xs:restriction>
+    </xs:simpleType>
+
+    <!-- Service-Modelle sind erweiterbar (hivemind.ServiceModels) → eingebaute Werte nur als Vorschlag -->
+    <xs:simpleType name="modelType">
+        <xs:union memberTypes="xs:string">
+            <xs:simpleType>
+                <xs:restriction base="xs:string">
+                    <xs:enumeration value="primitive"/>
+                    <xs:enumeration value="singleton"/>
+                    <xs:enumeration value="threaded"/>
+                    <xs:enumeration value="pooled"/>
+                </xs:restriction>
+            </xs:simpleType>
+        </xs:union>
+    </xs:simpleType>
+
+    <!-- Translatoren sind erweiterbar (hivemind.Translators) und dürfen einen Initialisierer haben ("int,min=0") -->
+    <xs:simpleType name="translatorType">
+        <xs:union memberTypes="xs:string">
+            <xs:simpleType>
+                <xs:restriction base="xs:string">
+                    <xs:enumeration value="boolean"/>
+                    <xs:enumeration value="class"/>
+                    <xs:enumeration value="configuration"/>
+                    <xs:enumeration value="double"/>
+                    <xs:enumeration value="enumeration"/>
+                    <xs:enumeration value="id-list"/>
+                    <xs:enumeration value="instance"/>
+                    <xs:enumeration value="int"/>
+                    <xs:enumeration value="long"/>
+                    <xs:enumeration value="object"/>
+                    <xs:enumeration value="qualified-id"/>
+                    <xs:enumeration value="resource"/>
+                    <xs:enumeration value="service"/>
+                    <xs:enumeration value="service-point"/>
+                    <xs:enumeration value="smart"/>
+                </xs:restriction>
+            </xs:simpleType>
+        </xs:union>
+    </xs:simpleType>
+
+    <!-- ============================================================ Modulinhalt -->
+
+    <xs:complexType name="dependencyType">
+        <xs:attribute name="module-id" type="xs:string" use="required"/>
+        <xs:attribute name="version" type="xs:string"/>
+    </xs:complexType>
+
+    <!-- if an <sub-module> nennt die Doku für 1.1.2, das nie erschienen ist; 1.1.1 kennt es nicht (DescriptorParser.properties) -->
+    <xs:complexType name="subModuleType">
+        <xs:attribute name="descriptor" type="xs:string" use="required"/>
+    </xs:complexType>
+
+    <xs:group name="constructionGroup">
+        <xs:choice>
+            <xs:element name="create-instance" type="createInstanceType"/>
+            <xs:element name="interceptor" type="interceptorType"/>
+            <xs:element name="invoke-factory" type="invokeFactoryType"/>
+        </xs:choice>
+    </xs:group>
+
+    <xs:complexType name="servicePointType" mixed="true">
+        <xs:choice minOccurs="0" maxOccurs="unbounded">
+            <xs:group ref="constructionGroup"/>
+            <xs:element name="parameters-schema" type="inlineSchemaType"/>
+        </xs:choice>
+        <xs:attribute name="id" type="xs:string" use="required"/>
+        <xs:attribute name="interface" type="xs:string"/>
+        <xs:attribute name="visibility" type="visibilityType"/>
+        <xs:attribute name="parameters-schema-id" type="xs:string"/>
+        <xs:attribute name="parameters-occurs" type="occursType"/>
+    </xs:complexType>
+
+    <xs:complexType name="implementationType">
+        <xs:choice minOccurs="0" maxOccurs="unbounded">
+            <xs:group ref="constructionGroup"/>
+        </xs:choice>
+        <xs:attribute name="service-id" type="xs:string" use="required"/>
+        <xs:attribute name="if" type="xs:string"/>
+    </xs:complexType>
+
+    <xs:complexType name="createInstanceType">
+        <xs:attribute name="class" type="xs:string" use="required"/>
+        <xs:attribute name="model" type="modelType"/>
+    </xs:complexType>
+
+    <!-- Inhalt: Parameter laut Schema der Factory; <construct> wird über die globale Deklaration geprüft -->
+    <xs:complexType name="invokeFactoryType">
+        <xs:sequence>
+            <xs:any processContents="lax" minOccurs="0" maxOccurs="unbounded"/>
+        </xs:sequence>
+        <xs:attribute name="service-id" type="xs:string"/>
+        <xs:attribute name="model" type="modelType"/>
+    </xs:complexType>
+
+    <!-- Inhalt: Parameter laut Schema der Interceptor-Factory (z.B. <include>/<exclude> des LoggingInterceptor) -->
+    <xs:complexType name="interceptorType">
+        <xs:sequence>
+            <xs:any processContents="skip" minOccurs="0" maxOccurs="unbounded"/>
+        </xs:sequence>
+        <xs:attribute name="service-id" type="xs:string" use="required"/>
+        <xs:attribute name="before" type="xs:string"/>
+        <xs:attribute name="after" type="xs:string"/>
+        <xs:attribute name="name" type="xs:string"/>
+    </xs:complexType>
+
+    <xs:complexType name="configurationPointType" mixed="true">
+        <xs:choice minOccurs="0" maxOccurs="unbounded">
+            <xs:element name="schema" type="inlineSchemaType"/>
+        </xs:choice>
+        <xs:attribute name="id" type="xs:string" use="required"/>
+        <xs:attribute name="visibility" type="visibilityType"/>
+        <xs:attribute name="occurs" type="occursType"/>
+        <xs:attribute name="schema-id" type="xs:string"/>
+    </xs:complexType>
+
+    <!-- Inhalt wird durch das Schema des Configuration-Points bestimmt -->
+    <xs:complexType name="contributionType" mixed="true">
+        <xs:sequence>
+            <xs:any processContents="skip" minOccurs="0" maxOccurs="unbounded"/>
+        </xs:sequence>
+        <xs:attribute name="configuration-id" type="xs:string" use="required"/>
+        <xs:attribute name="if" type="xs:string"/>
+    </xs:complexType>
+
+    <!-- ============================================================ Schemas -->
+
+    <!-- <schema> direkt im Modul: id ist Pflicht -->
+    <xs:complexType name="schemaType" mixed="true">
+        <xs:sequence>
+            <xs:element name="element" type="elementType" minOccurs="0" maxOccurs="unbounded"/>
+        </xs:sequence>
+        <xs:attribute name="id" type="xs:string" use="required"/>
+        <xs:attribute name="visibility" type="visibilityType"/>
+    </xs:complexType>
+
+    <!-- <schema> im configuration-point bzw. <parameters-schema> im service-point: id und visibility nicht erlaubt -->
+    <xs:complexType name="inlineSchemaType" mixed="true">
+        <xs:sequence>
+            <xs:element name="element" type="elementType" minOccurs="0" maxOccurs="unbounded"/>
+        </xs:sequence>
+    </xs:complexType>
+
+    <xs:complexType name="elementType" mixed="true">
+        <xs:choice minOccurs="0" maxOccurs="unbounded">
+            <xs:element name="attribute" type="attributeType"/>
+            <xs:element name="conversion" type="conversionType"/>
+            <xs:element name="element" type="elementType"/>
+            <xs:element name="rules" type="rulesType"/>
+        </xs:choice>
+        <xs:attribute name="name" type="xs:string" use="required"/>
+        <xs:attribute name="content-translator" type="translatorType"/>
+        <xs:attribute name="key-attribute" type="xs:string"/>
+    </xs:complexType>
+
+    <xs:complexType name="attributeType" mixed="true">
+        <xs:attribute name="name" type="xs:string" use="required"/>
+        <xs:attribute name="required" type="booleanType"/>
+        <xs:attribute name="unique" type="booleanType"/>
+        <xs:attribute name="translator" type="translatorType"/>
+    </xs:complexType>
+
+    <xs:complexType name="conversionType">
+        <xs:sequence>
+            <xs:element name="map" type="mapType" minOccurs="0" maxOccurs="unbounded"/>
+        </xs:sequence>
+        <xs:attribute name="class" type="xs:string" use="required"/>
+        <xs:attribute name="parent-method" type="xs:string"/>
+    </xs:complexType>
+
+    <xs:complexType name="mapType">
+        <xs:attribute name="attribute" type="xs:string" use="required"/>
+        <xs:attribute name="property" type="xs:string" use="required"/>
+    </xs:complexType>
+
+    <!-- Doku "Contribution Processing Rules" -->
+    <xs:complexType name="rulesType">
+        <xs:choice minOccurs="0" maxOccurs="unbounded">
+            <xs:element name="create-object">
+                <xs:complexType>
+                    <xs:attribute name="class" type="xs:string" use="required"/>
+                </xs:complexType>
+            </xs:element>
+            <xs:element name="custom">
+                <xs:complexType>
+                    <xs:attribute name="class" type="xs:string" use="required"/>
+                </xs:complexType>
+            </xs:element>
+            <xs:element name="invoke-parent">
+                <xs:complexType>
+                    <xs:attribute name="method" type="xs:string" use="required"/>
+                    <xs:attribute name="depth" type="xs:string"/>
+                </xs:complexType>
+            </xs:element>
+            <xs:element name="push-attribute">
+                <xs:complexType>
+                    <xs:attribute name="attribute" type="xs:string" use="required"/>
+                </xs:complexType>
+            </xs:element>
+            <xs:element name="push-content">
+                <xs:complexType/>
+            </xs:element>
+            <xs:element name="read-attribute">
+                <xs:complexType>
+                    <xs:attribute name="property" type="xs:string" use="required"/>
+                    <xs:attribute name="attribute" type="xs:string" use="required"/>
+                    <xs:attribute name="skip-if-null" type="booleanType"/>
+                    <xs:attribute name="translator" type="translatorType"/>
+                </xs:complexType>
+            </xs:element>
+            <xs:element name="read-content">
+                <xs:complexType>
+                    <xs:attribute name="property" type="xs:string" use="required"/>
+                </xs:complexType>
+            </xs:element>
+            <xs:element name="set-module">
+                <xs:complexType>
+                    <xs:attribute name="property" type="xs:string" use="required"/>
+                </xs:complexType>
+            </xs:element>
+            <xs:element name="set-parent">
+                <xs:complexType>
+                    <xs:attribute name="property" type="xs:string" use="required"/>
+                </xs:complexType>
+            </xs:element>
+            <xs:element name="set-property">
+                <xs:complexType>
+                    <xs:attribute name="property" type="xs:string" use="required"/>
+                    <xs:attribute name="value" type="xs:string" use="required"/>
+                </xs:complexType>
+            </xs:element>
+        </xs:choice>
+    </xs:complexType>
+
+    <!-- ============================================================ hivemind.BuilderFactory -->
+
+    <xs:complexType name="constructType">
+        <xs:choice minOccurs="0" maxOccurs="unbounded">
+            <!-- Konstruktorparameter -->
+            <xs:element name="error-handler" type="emptyType"/>
+            <xs:element name="error-log" type="emptyType"/>
+            <xs:element name="log" type="emptyType"/>
+            <xs:element name="messages" type="emptyType"/>
+            <xs:element name="object" type="xs:string"/>
+            <xs:element name="null" type="emptyType"/>
+            <xs:element name="service-id" type="emptyType"/>
+            <xs:element name="class-resolver" type="emptyType"/>
+            <xs:element name="string" type="xs:string"/>
+            <xs:element name="boolean" type="xs:string"/>
+            <xs:element name="configuration" type="xs:string"/>
+            <xs:element name="int" type="xs:string"/>
+            <xs:element name="long" type="xs:string"/>
+            <xs:element name="resource" type="xs:string"/>
+            <xs:element name="service" type="xs:string"/>
+            <!-- Eigenschaften -->
+            <xs:element name="event-listener" type="eventListenerType"/>
+            <xs:element name="set" type="setType"/>
+            <xs:element name="set-configuration" type="setConfigurationType"/>
+            <xs:element name="set-object" type="setType"/>
+            <xs:element name="set-resource" type="setResourceType"/>
+            <xs:element name="set-service" type="setServiceType"/>
+        </xs:choice>
+        <!-- class ist nur für die BuilderFactory Pflicht (prüft das Plugin); andere Factories haben eigene Attribute -->
+        <xs:attribute name="class" type="xs:string"/>
+        <xs:attribute name="autowire-services" type="booleanType"/>
+        <xs:attribute name="class-resolver-property" type="xs:string"/>
+        <xs:attribute name="error-handler-property" type="xs:string"/>
+        <xs:attribute name="error-log-property" type="xs:string"/>
+        <xs:attribute name="initialize-method" type="xs:string"/>
+        <xs:attribute name="log-property" type="xs:string"/>
+        <xs:attribute name="messages-property" type="xs:string"/>
+        <xs:attribute name="service-id-property" type="xs:string"/>
+        <xs:anyAttribute processContents="skip"/>
+    </xs:complexType>
+
+    <xs:complexType name="emptyType"/>
+
+    <xs:complexType name="setType">
+        <xs:attribute name="property" type="xs:string" use="required"/>
+        <xs:attribute name="value" type="xs:string" use="required"/>
+    </xs:complexType>
+
+    <xs:complexType name="setServiceType">
+        <xs:attribute name="property" type="xs:string" use="required"/>
+        <xs:attribute name="service-id" type="xs:string" use="required"/>
+    </xs:complexType>
+
+    <xs:complexType name="setConfigurationType">
+        <xs:attribute name="property" type="xs:string" use="required"/>
+        <xs:attribute name="configuration-id" type="xs:string" use="required"/>
+    </xs:complexType>
+
+    <xs:complexType name="setResourceType">
+        <xs:attribute name="property" type="xs:string" use="required"/>
+        <xs:attribute name="path" type="xs:string" use="required"/>
+    </xs:complexType>
+
+    <!-- Die Doku nennt in der Übersicht event-type-name, in der Tabelle name → beide zulassen -->
+    <xs:complexType name="eventListenerType">
+        <xs:attribute name="service-id" type="xs:string" use="required"/>
+        <xs:attribute name="name" type="xs:string"/>
+        <xs:attribute name="event-type-name" type="xs:string"/>
+    </xs:complexType>
+</xs:schema>
