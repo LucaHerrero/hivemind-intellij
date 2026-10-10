@@ -25,6 +25,7 @@ Unten im Fenster gibt es eine Liste aller Services, aus dem Projekt und aus den 
 - Für `hivemodule.xml` und eingebundene Sub-Module gibt es ein Schema, also Completion und Validierung für Tags und Attribute.
 - Service-, Configuration- und Schema-ids sind anklickbar und haben Completion. Find Usages und Rename funktionieren über alle Deskriptoren, Java-Code und Tapestry-Spezifikationen hinweg.
 - Klassennamen werden so aufgelöst wie in HiveMind selbst, also auch relativ zum Modulpaket.
+- Optional kann man am `<module>` eine `neighbor-class` angeben. Das ist keine Funktion von HiveMind 1.1, sondern eine Erweiterung: HiveMind erzeugt die Klassen des Moduls neben dieser Klasse und nimmt dafür ihren Classloader. Ist sie angegeben, wird sie wie jeder andere Klassenname aufgelöst und muss eine Klasse sein, kein Interface.
 - Symbole wie `${mail.host}` führen zu ihrem Standardwert, Nachrichten wie `%mail.host` zur Properties-Datei neben dem Deskriptor.
 - Bei Contributions und Factory-Parametern schaut das Plugin ins zugehörige Schema. Steht dort zum Beispiel der Translator `service`, wird der Wert als Service-id behandelt.
 - Interceptor-Reihenfolgen (`before`/`after`), `<dependency module-id>` und Klassen in `if`-Bedingungen sind ebenfalls anklickbar.

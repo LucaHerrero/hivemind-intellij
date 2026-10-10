@@ -16,7 +16,7 @@
   Beschreibungen stehen als Text im Element (Doku "HiveDoc"; das frühere <description>-Element wurde in 1.0-beta-1
   entfernt): <attribute>, <configuration-point>, <element>, <module>, <schema> und <service-point> sind daher mixed.
 -->
-<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" elementFormDefault="unqualified">
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
 
     <xs:element name="module">
         <xs:complexType mixed="true">
@@ -32,6 +32,8 @@
             <xs:attribute name="id" type="xs:string" use="required"/>
             <xs:attribute name="version" type="xs:string" use="required"/>
             <xs:attribute name="package" type="xs:string"/>
+            <!-- Erweiterung, nicht Teil von HiveMind 1.1: Klasse, die Paket und Classloader zum Erzeugen der Services liefert -->
+            <xs:attribute name="neighbor-class" type="xs:string"/>
         </xs:complexType>
     </xs:element>
 

@@ -87,7 +87,7 @@ class DescriptorReferenceProvider extends PsiReferenceProvider {
                                                        String text, int offset, HiveModule module) {
         return switch ("%s@%s".formatted(tag.getName(), attrName)) {
             case "service-point@interface" -> HiveMindReferences.className(value, text, offset, module, true, ERROR);
-            case "create-instance@class", "conversion@class", "create-object@class", "custom@class" ->
+            case "create-instance@class", "conversion@class", "create-object@class", "custom@class", "module@neighbor-class" ->
                     HiveMindReferences.className(value, text, offset, module, false, ERROR);
             case "invoke-factory@service-id", "interceptor@service-id", "implementation@service-id" ->
                     HiveMindReferences.point(value, text, offset, PointKind.SERVICE, module, ERROR);

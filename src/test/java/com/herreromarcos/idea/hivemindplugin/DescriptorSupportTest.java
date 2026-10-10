@@ -66,6 +66,53 @@ public class DescriptorSupportTest extends HiveMindTestCase {
         assertTrue(settings.point().isPrivate());
     }
 
+    // ------------------------------------------------------------------ neighbor-class
+
+    public void testNeighborClassIsOptional() {
+        configure("plain/META-INF/hivemodule.xml", """
+                <module id="plain" version="1.0.0" package="com.example">
+                  <service-point id="Clock" interface="Settings">
+                    <create-instance class="SettingsImpl"/>
+                  </service-point>
+                </module>
+                """);
+        assertEmpty(highlightingMessages(HighlightSeverity.WARNING));
+    }
+
+    public void testNeighborClassResolvesRelativeToModulePackage() {
+        configure("neighbor/META-INF/hivemodule.xml", """
+                <module id="neighbor" version="1.0.0" package="com.example" neighbor-class="Mailer<caret>Impl"/>
+                """);
+        final PsiElement target = resolveAtCaret();
+        assertInstanceOf(target, PsiClass.class);
+        assertEquals("com.example.MailerImpl", ((PsiClass) target).getQualifiedName());
+        assertEmpty(highlightingMessages(HighlightSeverity.WARNING));
+    }
+
+    public void testNeighborClassFullyQualified() {
+        configure("neighbor/META-INF/hivemodule.xml", """
+                <module id="neighbor" version="1.0.0" neighbor-class="com.example.SettingsImpl"/>
+                """);
+        assertEmpty(highlightingMessages(HighlightSeverity.WARNING));
+    }
+
+    public void testUnknownNeighborClassIsError() {
+        configure("neighbor/META-INF/hivemodule.xml", """
+                <module id="neighbor" version="1.0.0" package="com.example" neighbor-class="Missing"/>
+                """);
+        assertTrue(highlightingMessages(HighlightSeverity.ERROR).stream().anyMatch(message -> message.contains("'Missing'")));
+    }
+
+    public void testNeighborClassMustNotBeInterface() {
+        configure("neighbor/META-INF/hivemodule.xml", """
+                <module id="neighbor" version="1.0.0" package="com.example" neighbor-class="Mailer"/>
+                """);
+        assertContainsElements(highlightingMessages(HighlightSeverity.ERROR),
+                "Neighbor class 'com.example.Mailer' is an interface; HiveMind needs a class to load the services with");
+    }
+
+    // ------------------------------------------------------------------ Implementierungen
+
     public void testImplementationElementOfOtherModuleIsCollected() {
         myFixture.addFileToProject("other/META-INF/hivemodule.xml", """
                 <module id="other" version="1.0.0">

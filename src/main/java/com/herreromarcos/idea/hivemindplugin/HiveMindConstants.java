@@ -26,6 +26,11 @@ public class HiveMindConstants {
 
     public static final String ATTR_ID = "id";
     public static final String ATTR_PACKAGE = "package";
+    /**
+     * Projektspezifische Erweiterung (nicht Teil von HiveMind 1.1): Klasse, neben der HiveMind die Klassen des Moduls
+     * erzeugt – sie liefert Paket und Classloader. Optional; muss eine Klasse sein, kein Interface.
+     */
+    public static final String ATTR_NEIGHBOR_CLASS = "neighbor-class";
     public static final String ATTR_INTERFACE = "interface";
     public static final String ATTR_CLASS = "class";
     public static final String ATTR_MODEL = "model";

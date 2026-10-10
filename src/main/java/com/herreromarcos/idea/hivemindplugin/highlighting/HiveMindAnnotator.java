@@ -5,6 +5,7 @@ import com.intellij.lang.annotation.AnnotationHolder;
 import com.intellij.lang.annotation.Annotator;
 import com.intellij.lang.annotation.HighlightSeverity;
 import com.intellij.openapi.util.TextRange;
+import com.intellij.psi.PsiClass;
 import com.intellij.psi.PsiElement;
 import com.intellij.psi.PsiLiteralExpression;
 import com.intellij.psi.PsiPolyVariantReference;
@@ -13,6 +14,7 @@ import com.intellij.psi.xml.XmlAttribute;
 import com.intellij.psi.xml.XmlAttributeValue;
 import com.intellij.psi.xml.XmlTag;
 import com.intellij.xml.util.XmlTagUtil;
+import com.herreromarcos.idea.hivemindplugin.model.HiveMindClasses;
 import com.herreromarcos.idea.hivemindplugin.model.HiveMindRegistry;
 import com.herreromarcos.idea.hivemindplugin.model.HiveModule;
 import com.herreromarcos.idea.hivemindplugin.model.Point;
@@ -53,6 +55,7 @@ public class HiveMindAnnotator implements Annotator {
         if (element instanceof final XmlAttributeValue value && value.getParent() instanceof final XmlAttribute attribute) {
             if (descriptor && ATTR_ID.equals(attribute.getName())) checkPointDefinition(value, attribute.getParent(), holder);
             if (descriptor && ATTR_IF.equals(attribute.getName())) checkCondition(value, holder);
+            if (descriptor && ATTR_NEIGHBOR_CLASS.equals(attribute.getName())) checkNeighborClass(value, attribute.getParent(), holder);
             // außerhalb der Deskriptoren nur <inject object="..."> und "hivemind:"-Bindings in Tapestry-Dateien
             if (descriptor || ATTR_OBJECT.equals(attribute.getName()) || value.getValue().startsWith(HIVEMIND_BINDING_PREFIX)) {
                 checkReferences(element, holder);
@@ -167,6 +170,23 @@ public class HiveMindAnnotator implements Annotator {
             new Parser().parse(value.getValue());
         } catch (final RuntimeException e) {
             holder.newAnnotation(HighlightSeverity.ERROR, "Invalid condition: %s".formatted(e.getMessage())).range(value).create();
+        }
+    }
+
+    /**
+     * {@code <module neighbor-class="...">}: HiveMind erzeugt die Klassen des Moduls neben dieser Klasse und braucht dafür
+     * ihren Classloader – ein Interface taugt dafür nicht. Ob die Klasse existiert, meldet bereits die Klassenreferenz.
+     */
+    private static void checkNeighborClass(XmlAttributeValue value, XmlTag tag, AnnotationHolder holder) {
+        final HiveModule module = HiveMindRegistry.moduleOf(value);
+        final String className = value.getValue().trim();
+        if (tag == null || !TAG_MODULE.equals(tag.getName()) || tag.getParentTag() != null || module == null || className.isEmpty()) return;
+        final PsiClass neighbor = HiveMindClasses.resolve(value.getProject(), value.getResolveScope(), module.packageName(), className);
+        if (neighbor != null && neighbor.isInterface()) {
+            holder.newAnnotation(HighlightSeverity.ERROR, "Neighbor class '%s' is an interface; HiveMind needs a class to load the services with"
+                            .formatted(neighbor.getQualifiedName()))
+                    .range(value)
+                    .create();
         }
     }
 

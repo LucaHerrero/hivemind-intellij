@@ -36,6 +36,8 @@ import java.util.TreeSet;
  */
 public class ApacheReferenceTest extends HiveMindTestCase {
     private static final String SCHEMA = "/schema/hivemodule-1.1.xsd";
+    /** Attribute, die das Schema bewusst über HiveMind 1.1.1 hinaus kennt. */
+    private static final Map<String, Set<String>> SCHEMA_EXTENSIONS = Map.of("module", Set.of("neighbor-class"));
 
     // ------------------------------------------------------------------ Original-Deskriptoren
 
@@ -133,11 +135,17 @@ public class ApacheReferenceTest extends HiveMindTestCase {
                 continue;
             }
             // mindestens eine Deklaration muss exakt passen (z.B. <schema> im Modul: id Pflicht)
-            if (declarations.stream().noneMatch(element.getValue()::equals)) {
+            if (declarations.stream().map(declaration -> withoutExtensions(element.getKey(), declaration)).noneMatch(element.getValue()::equals)) {
                 mismatches.add("<%s>: expected %s, schema has %s".formatted(element.getKey(), element.getValue(), declarations));
             }
         }
         assertEmpty(mismatches);
+    }
+
+    private static Map<String, Boolean> withoutExtensions(String element, Map<String, Boolean> attributes) {
+        final Map<String, Boolean> result = new TreeMap<>(attributes);
+        result.keySet().removeAll(SCHEMA_EXTENSIONS.getOrDefault(element, Set.of()));
+        return result;
     }
 
     /** Element → Attribut → Pflicht, je benannter Deklaration im Schema (Elemente können mehrfach deklariert sein). */
