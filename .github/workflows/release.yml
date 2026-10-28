@@ -71,3 +71,12 @@ jobs:
             --target "${{ github.sha }}" \
             --title "HiveMind ${{ steps.version.outputs.version }}" \
             --generate-notes
+
+      - name: JetBrains Marketplace Publisher
+        uses: CodingWithCalvin/GHA-JBMarketplacePublisher@v1
+        with:
+          marketplace-pat: ${{ secrets.JB_MARKETPLACE_PAT }}
+          archive-path: 'build/distributions/hivemind-intellij-${{ steps.version.outputs.version }}.zip'
+          plugin-xml-id: 'com.herreromarcos.idea.hivemindplugin'
+          channel: stable
+          is-hidden: false

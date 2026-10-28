@@ -8,7 +8,7 @@ plugins {
 // Gradle-Version (gradle/wrapper): wie beim Tapestry-Plugin bewusst 9.7.1 – IntelliJ 2026.2 übernimmt mit
 // Gradle 9.8.x die Abhängigkeiten des main-Source-Sets nicht ins IDE-Modell.
 group = "com.herreromarcos.idea"
-version = "0.1.4"
+version = "0.1.5"
 
 repositories {
     mavenCentral()
