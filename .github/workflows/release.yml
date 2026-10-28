@@ -73,6 +73,7 @@ jobs:
             --generate-notes
 
       - name: JetBrains Marketplace Publisher
+        if: steps.existing.outputs.exists == 'false'
         uses: CodingWithCalvin/GHA-JBMarketplacePublisher@v1
         with:
           marketplace-pat: ${{ secrets.JB_MARKETPLACE_PAT }}
