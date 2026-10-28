@@ -8,7 +8,7 @@ plugins {
 // Gradle-Version (gradle/wrapper): wie beim Tapestry-Plugin bewusst 9.7.1 – IntelliJ 2026.2 übernimmt mit
 // Gradle 9.8.x die Abhängigkeiten des main-Source-Sets nicht ins IDE-Modell.
 group = "com.herreromarcos.idea"
-version = "0.1.3"
+version = "0.1.4"
 
 repositories {
     mavenCentral()
@@ -55,6 +55,11 @@ intellijPlatform {
         name = "HiveMind"
         version = project.version.toString()
         changeNotes = """
+            <b>0.1.4</b>
+            <ul>
+              <li>Tool window: services can be shown as a tree grouped by the packages in their ids ("Show as Tree");
+                  packages with a single sub-package are merged, filter, details and navigation work in both views</li>
+            </ul>
             <b>0.1.3</b>
             <ul>
               <li>Plugin renamed to "HiveMind"; vendor e-mail and website added</li>

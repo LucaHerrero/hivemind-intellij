@@ -24,7 +24,10 @@ import com.intellij.psi.util.PsiModificationTracker;
 import com.intellij.psi.xml.XmlTag;
 import com.intellij.ui.*;
 import com.intellij.ui.components.JBLabel;
+import com.intellij.ui.dualView.TreeTableView;
 import com.intellij.ui.table.TableView;
+import com.intellij.ui.treeStructure.treetable.ListTreeTableModelOnColumns;
+import com.intellij.ui.treeStructure.treetable.TreeColumnInfo;
 import com.intellij.util.Alarm;
 import com.intellij.util.PsiNavigateUtil;
 import com.intellij.util.concurrency.AppExecutorUtil;
@@ -32,31 +35,44 @@ import com.intellij.util.ui.ColumnInfo;
 import com.intellij.util.ui.HTMLEditorKitBuilder;
 import com.intellij.util.ui.JBUI;
 import com.intellij.util.ui.ListTableModel;
+import com.intellij.util.ui.StatusText;
+import com.intellij.util.ui.tree.TreeUtil;
 import com.herreromarcos.idea.hivemindplugin.HiveMindIcons;
 import com.herreromarcos.idea.hivemindplugin.model.HiveMindRegistry;
+import com.herreromarcos.idea.hivemindplugin.toolwindow.ServiceTree.ServicePackage;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import javax.swing.*;
 import javax.swing.event.DocumentEvent;
 import javax.swing.event.HyperlinkEvent;
+import javax.swing.event.ListSelectionListener;
+import javax.swing.table.TableCellRenderer;
+import javax.swing.tree.DefaultMutableTreeNode;
+import javax.swing.tree.TreeNode;
+import javax.swing.tree.TreePath;
 import java.awt.BorderLayout;
 import java.awt.datatransfer.StringSelection;
 import java.awt.event.KeyEvent;
 import java.awt.event.MouseEvent;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Comparator;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.function.Function;
 import java.util.function.Predicate;
 
 /**
- * Inhalt des Toolwindows "HiveMind": alle Services ("Beans") aller Module als sortier- und filterbare Tabelle,
- * darunter die Details des ausgewählten Services. Aktualisiert sich nach PSI- und Classpath-Änderungen selbst.
+ * Inhalt des Toolwindows "HiveMind": alle Services ("Beans") aller Module als sortier- und filterbare Tabelle oder als
+ * Baum nach den Paketen in ihren ids, darunter die Details des ausgewählten Services. Aktualisiert sich nach PSI- und
+ * Classpath-Änderungen selbst.
  */
 public class ServicesPanel extends SimpleToolWindowPanel implements Disposable {
     static final String PLACE = "HiveMindServices";
     private static final String SHOW_LIBRARIES_KEY = "hivemind.toolwindow.showLibraries";
+    private static final String TREE_MODE_KEY = "hivemind.toolwindow.treeMode";
     private static final int REFRESH_DELAY_MS = 400;
     /** Links im Detailbereich. */
     private static final String LINK_DECLARATION = "decl";
@@ -66,25 +82,43 @@ public class ServicesPanel extends SimpleToolWindowPanel implements Disposable {
     private final Project project;
     private final ListTableModel<ServiceRow> model = new ListTableModel<>(createColumns());
     private final TableView<ServiceRow> table;
+    private final ListTreeTableModelOnColumns treeModel = new ListTreeTableModelOnColumns(new DefaultMutableTreeNode(), createTreeColumns());
+    private final TreeTableView treeTable;
+    private final JScrollPane tableScrollPane;
+    private final JScrollPane treeScrollPane;
+    private final JBSplitter splitter = new JBSplitter(true, "hivemind.toolwindow.splitter", 0.7f);
     private final SearchTextField filterField = new SearchTextField(false);
     private final JEditorPane details = new JEditorPane();
     private final JBLabel status = new JBLabel();
     private final Alarm refreshAlarm = new Alarm(Alarm.ThreadToUse.SWING_THREAD, this);
     private List<ServiceRow> allRows = List.of();
+    private List<ServiceRow> visibleRows = List.of();
+    /** Aufgeklappte Pakete des ungefilterten Baums – nach dem Filtern wird dieser Zustand wiederhergestellt. */
+    private Set<String> expandedPackages = Set.of();
+    private boolean treeFiltered;
 
     public ServicesPanel(@NotNull Project project) {
         super(true, true);
         this.project = project;
+        final ListSelectionListener selectionListener = e -> {
+            if (!e.getValueIsAdjusting()) showDetails(getSelectedRow());
+        };
 
         model.setSortable(true);
         table = new TableView<>(model);
         table.setShowGrid(false);
-        table.getEmptyText().setText("No HiveMind services found");
-        table.getEmptyText().appendSecondaryText("Services are read from hivemodule.xml in the project and on the classpath",
-                SimpleTextAttributes.GRAYED_ATTRIBUTES, null);
-        table.getSelectionModel().addListSelectionListener(e -> {
-            if (!e.getValueIsAdjusting()) showDetails(table.getSelectedObject());
-        });
+        setEmptyText(table.getEmptyText());
+        table.getSelectionModel().addListSelectionListener(selectionListener);
+        tableScrollPane = ScrollPaneFactory.createScrollPane(table, true);
+
+        treeTable = new TreeTableView(treeModel);
+        treeTable.setRootVisible(false);
+        treeTable.getTree().setShowsRootHandles(true);
+        treeTable.setShowGrid(false);
+        treeTable.setTreeCellRenderer(new ServiceTreeCellRenderer());
+        setEmptyText(treeTable.getEmptyText());
+        treeTable.getSelectionModel().addListSelectionListener(selectionListener);
+        treeScrollPane = ScrollPaneFactory.createScrollPane(treeTable, true);
 
         details.setEditable(false);
         details.setEditorKit(HTMLEditorKitBuilder.simple());
@@ -96,8 +130,7 @@ public class ServicesPanel extends SimpleToolWindowPanel implements Disposable {
             }
         });
 
-        final JBSplitter splitter = new JBSplitter(true, "hivemind.toolwindow.splitter", 0.7f);
-        splitter.setFirstComponent(ScrollPaneFactory.createScrollPane(table, true));
+        splitter.setFirstComponent(isTreeMode() ? treeScrollPane : tableScrollPane);
         splitter.setSecondComponent(ScrollPaneFactory.createScrollPane(details, SideBorder.TOP));
 
         final JPanel content = new JPanel(new BorderLayout());
@@ -113,6 +146,12 @@ public class ServicesPanel extends SimpleToolWindowPanel implements Disposable {
     }
 
     // ------------------------------------------------------------------ Aufbau der Oberfläche
+
+    private static void setEmptyText(StatusText emptyText) {
+        emptyText.setText("No HiveMind services found");
+        emptyText.appendSecondaryText("Services are read from hivemodule.xml in the project and on the classpath",
+                SimpleTextAttributes.GRAYED_ATTRIBUTES, null);
+    }
 
     private JComponent createToolbar() {
         final DefaultActionGroup group = new DefaultActionGroup();
@@ -140,8 +179,25 @@ public class ServicesPanel extends SimpleToolWindowPanel implements Disposable {
                 return ActionUpdateThread.EDT;
             }
         });
+        group.add(new DumbAwareToggleAction("Show as Tree", "Group services by the packages in their ids",
+                AllIcons.Actions.ShowAsTree) {
+            @Override
+            public boolean isSelected(@NotNull AnActionEvent e) {
+                return isTreeMode();
+            }
+
+            @Override
+            public void setSelected(@NotNull AnActionEvent e, boolean state) {
+                setTreeMode(state);
+            }
+
+            @Override
+            public @NotNull ActionUpdateThread getActionUpdateThread() {
+                return ActionUpdateThread.EDT;
+            }
+        });
         final ActionToolbar toolbar = ActionManager.getInstance().createActionToolbar(PLACE, group, true);
-        toolbar.setTargetComponent(table);
+        toolbar.setTargetComponent(this);
 
         filterField.getTextEditor().getEmptyText().setText("Filter by id, interface, class or module");
         filterField.addDocumentListener(new DocumentAdapter() {
@@ -173,17 +229,22 @@ public class ServicesPanel extends SimpleToolWindowPanel implements Disposable {
             return true;
         });
 
-        declaration.registerCustomShortcutSet(new CustomShortcutSet(
+        final ShortcutSet shortcuts = new CustomShortcutSet(
                 new KeyboardShortcut(KeyStroke.getKeyStroke(KeyEvent.VK_ENTER, 0), null),
-                new KeyboardShortcut(KeyStroke.getKeyStroke(KeyEvent.VK_F4, 0), null)), table);
-        new DoubleClickListener() {
-            @Override
-            protected boolean onDoubleClick(@NotNull MouseEvent event) {
-                final ServiceRow row = table.getSelectedObject();
-                return row != null && navigate(row.declaration());
-            }
-        }.installOn(table);
-        PopupHandler.installPopupMenu(table, new DefaultActionGroup(declaration, serviceInterface, implementation, Separator.getInstance(), copyId), PLACE);
+                new KeyboardShortcut(KeyStroke.getKeyStroke(KeyEvent.VK_F4, 0), null));
+        final ActionGroup popup = new DefaultActionGroup(declaration, serviceInterface, implementation, Separator.getInstance(), copyId);
+        // im Baum sind Pakete keine Services: Enter und Doppelklick bleiben dort beim Auf-/Zuklappen
+        for (final JComponent view : List.of(table, treeTable)) {
+            declaration.registerCustomShortcutSet(shortcuts, view);
+            new DoubleClickListener() {
+                @Override
+                protected boolean onDoubleClick(@NotNull MouseEvent event) {
+                    final ServiceRow row = getSelectedRow();
+                    return row != null && navigate(row.declaration());
+                }
+            }.installOn(view);
+            PopupHandler.installPopupMenu(view, popup, PLACE);
+        }
     }
 
     private void subscribeToChanges() {
@@ -228,20 +289,66 @@ public class ServicesPanel extends SimpleToolWindowPanel implements Disposable {
     }
 
     private void applyFilter() {
-        final ServiceRow selected = table.getSelectedObject();
+        applyFilter(getSelectedRow());
+    }
+
+    /** @param selected bleibt ausgewählt, wenn er weiterhin angezeigt wird */
+    private void applyFilter(@Nullable ServiceRow selected) {
         final boolean showLibraries = isShowLibraries();
         final String filter = filterField.getText();
         final List<ServiceRow> visible = new ArrayList<>();
         for (final ServiceRow row : allRows) {
             if ((showLibraries || !row.library()) && row.matches(filter)) visible.add(row);
         }
+        visibleRows = visible;
+        if (isTreeMode()) showTree(visible, selected, filter);
+        else showTable(visible, selected);
+        showDetails(getSelectedRow());
+        updateStatus(visible);
+    }
+
+    private void showTable(List<ServiceRow> visible, @Nullable ServiceRow selected) {
         model.setItems(visible);
         if (selected != null) {
             visible.stream().filter(row -> row.id().equals(selected.id())).findFirst()
                     .ifPresent(row -> table.setSelection(List.of(row)));
         }
-        showDetails(table.getSelectedObject());
-        updateStatus(visible);
+    }
+
+    /**
+     * Baut den Baum neu auf. Beim Filtern ist alles aufgeklappt; ohne Filter gelten die zuletzt ungefiltert
+     * aufgeklappten Pakete – auch wenn ein Paket inzwischen anders zusammengefasst ist ("tapestry" ↔ "tapestry.globals").
+     */
+    private void showTree(List<ServiceRow> visible, @Nullable ServiceRow selected, String filter) {
+        final JTree tree = treeTable.getTree();
+        if (!treeFiltered) {
+            expandedPackages = new HashSet<>(TreeUtil.collectExpandedObjects(tree, path -> {
+                final ServicePackage servicePackage = TreeUtil.getLastUserObject(ServicePackage.class, path);
+                return servicePackage != null ? servicePackage.qualifiedName() : null;
+            }));
+            expandedPackages.remove(null);
+        }
+        treeFiltered = !filter.isBlank();
+
+        final DefaultMutableTreeNode root = ServiceTree.build(visible);
+        treeModel.setRoot(root);
+        tree.expandPath(new TreePath(root));
+        for (final TreeNode node : Collections.list(root.breadthFirstEnumeration())) {
+            final ServicePackage servicePackage = TreeUtil.getUserObject(ServicePackage.class, node);
+            if (servicePackage != null && (treeFiltered || wasExpanded(servicePackage))) {
+                tree.expandPath(new TreePath(((DefaultMutableTreeNode) node).getPath()));
+            }
+        }
+        final TreePath path = selected != null ? ServiceTree.findService(root, selected.id()) : null;
+        if (path != null) {
+            tree.expandPath(path.getParentPath());
+            treeTable.addSelectedPath(path);
+        }
+    }
+
+    private boolean wasExpanded(ServicePackage servicePackage) {
+        final String prefix = servicePackage.qualifiedName() + ".";
+        return expandedPackages.stream().anyMatch(name -> name.equals(servicePackage.qualifiedName()) || name.startsWith(prefix));
     }
 
     private void updateStatus(List<ServiceRow> visible) {
@@ -255,6 +362,26 @@ public class ServicesPanel extends SimpleToolWindowPanel implements Disposable {
 
     private boolean isShowLibraries() {
         return PropertiesComponent.getInstance(project).getBoolean(SHOW_LIBRARIES_KEY, true);
+    }
+
+    private boolean isTreeMode() {
+        return PropertiesComponent.getInstance(project).getBoolean(TREE_MODE_KEY, false);
+    }
+
+    /** Wechselt zwischen Tabelle und Baum; die Auswahl wird übernommen. */
+    void setTreeMode(boolean treeMode) {
+        if (treeMode == isTreeMode()) return;
+        final ServiceRow selected = getSelectedRow();
+        PropertiesComponent.getInstance(project).setValue(TREE_MODE_KEY, treeMode, false);
+        splitter.setFirstComponent(treeMode ? treeScrollPane : tableScrollPane);
+        applyFilter(selected);
+    }
+
+    /** Ausgewählter Service der aktiven Ansicht; im Baum {@code null}, wenn ein Paket ausgewählt ist. */
+    private @Nullable ServiceRow getSelectedRow() {
+        if (!isTreeMode()) return table.getSelectedObject();
+        final List<?> selection = treeTable.getSelection();
+        return selection.isEmpty() ? null : ServiceTree.rowOf(selection.getFirst());
     }
 
     private void showDetails(@Nullable ServiceRow row) {
@@ -291,7 +418,7 @@ public class ServicesPanel extends SimpleToolWindowPanel implements Disposable {
     }
 
     private void openLink(String link) {
-        final ServiceRow row = table.getSelectedObject();
+        final ServiceRow row = getSelectedRow();
         if (row == null) return;
         if (LINK_DECLARATION.equals(link)) navigate(row.declaration());
         else if (LINK_INTERFACE.equals(link)) navigateToClass(row.interfaceName());
@@ -324,12 +451,21 @@ public class ServicesPanel extends SimpleToolWindowPanel implements Disposable {
 
     // ------------------------------------------------------------------ für Tests
 
+    /** Angezeigte Services der aktiven Ansicht (im Baum in der Reihenfolge des Filters, nicht des Baums). */
     @NotNull List<ServiceRow> getVisibleRows() {
-        return model.getItems();
+        return visibleRows;
     }
 
     void setFilter(@NotNull String filter) {
         filterField.setText(filter);
+    }
+
+    @NotNull JTree getTree() {
+        return treeTable.getTree();
+    }
+
+    @NotNull DefaultMutableTreeNode getTreeRoot() {
+        return (DefaultMutableTreeNode) treeModel.getRoot();
     }
 
     /** Aktion auf der ausgewählten Zeile; das Prädikat liefert, ob etwas passiert ist. */
@@ -343,12 +479,12 @@ public class ServicesPanel extends SimpleToolWindowPanel implements Disposable {
 
         @Override
         public void update(@NotNull AnActionEvent e) {
-            e.getPresentation().setEnabled(table.getSelectedObject() != null);
+            e.getPresentation().setEnabled(getSelectedRow() != null);
         }
 
         @Override
         public void actionPerformed(@NotNull AnActionEvent e) {
-            final ServiceRow row = table.getSelectedObject();
+            final ServiceRow row = getSelectedRow();
             if (row != null) perform.test(row);
         }
 
@@ -400,6 +536,67 @@ public class ServicesPanel extends SimpleToolWindowPanel implements Disposable {
         };
     }
 
+    /** Spalten des Baums: erst der Baum selbst, dann dieselben Spalten wie in der Tabelle. */
+    private static ColumnInfo<?, ?>[] createTreeColumns() {
+        final TextColumn[] columns = createColumns();
+        final ColumnInfo<?, ?>[] result = new ColumnInfo<?, ?>[columns.length];
+        result[0] = new TreeColumnInfo(columns[0].getName());
+        for (int i = 1; i < columns.length; i++) result[i] = new NodeColumn(columns[i]);
+        return result;
+    }
+
+    /** Spalte des Baums: Wert und Darstellung der Tabellenspalte bei Services, leer bei Paketen. */
+    private static class NodeColumn extends ColumnInfo<Object, String> {
+        private final TextColumn column;
+
+        NodeColumn(TextColumn column) {
+            super(column.getName());
+            this.column = column;
+        }
+
+        @Override
+        public @Nullable String valueOf(Object node) {
+            final ServiceRow row = ServiceTree.rowOf(node);
+            return row != null ? column.valueOf(row) : null;
+        }
+
+        @Override
+        public @Nullable TableCellRenderer getRenderer(Object node) {
+            final ServiceRow row = ServiceTree.rowOf(node);
+            return row != null ? column.getRenderer(row) : null;
+        }
+
+        @Override
+        public @Nullable String getTooltipText() {
+            return column.getTooltipText();
+        }
+    }
+
+    /** Erste Spalte des Baums: Pakete mit der Anzahl ihrer Services, Services mit einfachem Namen. */
+    private static class ServiceTreeCellRenderer extends ColoredTreeCellRenderer {
+        @Override
+        public void customizeCellRenderer(@NotNull JTree tree, Object value, boolean selected, boolean expanded,
+                                          boolean leaf, int rowIndex, boolean hasFocus) {
+            final ServicePackage servicePackage = TreeUtil.getUserObject(ServicePackage.class, value);
+            if (servicePackage != null) {
+                setIcon(AllIcons.Nodes.Package);
+                append(servicePackage.name(), attributes(servicePackage.library()));
+                append("  " + servicePackage.services(), SimpleTextAttributes.GRAYED_SMALL_ATTRIBUTES);
+                return;
+            }
+            final ServiceRow row = ServiceTree.rowOf(value);
+            if (row == null) return;
+            setIcon(HiveMindIcons.SERVICE);
+            append(StringUtil.getShortName(row.id()), attributes(row.library()));
+            if (row.privateVisibility()) append("  private", SimpleTextAttributes.GRAYED_SMALL_ATTRIBUTES);
+            setToolTipText(row.id());
+        }
+
+        private static SimpleTextAttributes attributes(boolean library) {
+            return library ? SimpleTextAttributes.GRAYED_ATTRIBUTES : SimpleTextAttributes.REGULAR_ATTRIBUTES;
+        }
+    }
+
     /** Textspalte mit Sortierung; Services aus Bibliotheken werden grau dargestellt. */
     private static class TextColumn extends ColumnInfo<ServiceRow, String> {
         private final Function<ServiceRow, String> value;
@@ -425,7 +622,7 @@ public class ServicesPanel extends SimpleToolWindowPanel implements Disposable {
         }
 
         @Override
-        public @NotNull javax.swing.table.TableCellRenderer getRenderer(ServiceRow row) {
+        public @NotNull TableCellRenderer getRenderer(ServiceRow row) {
             return new ColoredTableCellRenderer() {
                 @Override
                 protected void customizeCellRenderer(@NotNull JTable table, @Nullable Object value, boolean selected,

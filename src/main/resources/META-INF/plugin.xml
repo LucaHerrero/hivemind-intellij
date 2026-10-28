@@ -7,7 +7,8 @@
     Support for the <b>Apache HiveMind 1.1</b> dependency injection framework.
     <ul>
       <li><b>HiveMind tool window</b>: all services ("beans") of all modules – project and libraries – with interface,
-          implementation, service model and module; filter, sorting, details and navigation</li>
+          implementation, service model and module; as a list or as a tree by package; filter, sorting, details
+          and navigation</li>
       <li>Module descriptors (<code>hivemodule.xml</code> and sub-modules): bundled schema for tag/attribute completion
           and validation</li>
       <li>Navigation and completion for service, configuration and schema ids (<code>service-id</code>, <code>set-service</code>,

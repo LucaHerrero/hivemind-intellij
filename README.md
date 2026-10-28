@@ -12,6 +12,7 @@ IntelliJ-Plugin für Apache HiveMind 1.1, das Dependency-Injection-Framework hin
 
 ### Toolwindow „HiveMind“
 - Liste aller Services aus Projekt und Classpath-JARs
+- Umschaltbar zwischen Liste und Baum nach den Paketen der Service-ids
 - Anzeige von Interface, Implementierung, Service-Modell und Modul
 - Filtern, Sortieren und Navigation per Doppelklick
 - Markierung fehlender Implementierungen
