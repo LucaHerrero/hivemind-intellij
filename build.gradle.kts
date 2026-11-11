@@ -8,7 +8,7 @@ plugins {
 // Gradle-Version (gradle/wrapper): wie beim Tapestry-Plugin bewusst 9.7.1 – IntelliJ 2026.2 übernimmt mit
 // Gradle 9.8.x die Abhängigkeiten des main-Source-Sets nicht ins IDE-Modell.
 group = "com.herreromarcos.idea"
-version = "0.1.5"
+version = "0.1.6"
 
 repositories {
     mavenCentral()
@@ -55,6 +55,12 @@ intellijPlatform {
         name = "HiveMind"
         version = project.version.toString()
         changeNotes = """
+            <b>0.1.6</b>
+            <ul>
+              <li>Setters that the BuilderFactory autowires with a service are no longer reported as unused – only if,
+                  as in HiveMind, exactly one service with the parameter type as interface is visible from the module and
+                  <code>autowire-services</code> is not <code>false</code>; inherited setters included</li>
+            </ul>
             <b>0.1.4</b>
             <ul>
               <li>Tool window: services can be shown as a tree grouped by the packages in their ids ("Show as Tree");

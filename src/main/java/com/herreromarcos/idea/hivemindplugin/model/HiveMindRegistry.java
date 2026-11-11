@@ -5,6 +5,9 @@ import com.intellij.openapi.roots.ProjectFileIndex;
 import com.intellij.openapi.roots.ProjectRootModificationTracker;
 import com.intellij.openapi.util.Key;
 import com.intellij.openapi.vfs.VirtualFile;
+import com.intellij.psi.JavaPsiFacade;
+import com.intellij.psi.PsiClass;
+import com.intellij.psi.PsiCompiledElement;
 import com.intellij.psi.PsiElement;
 import com.intellij.psi.PsiFile;
 import com.intellij.psi.PsiManager;
@@ -43,6 +46,8 @@ public class HiveMindRegistry {
     private final Map<String, List<XmlTag>> symbolDefaults = new TreeMap<>();
     private Map<String, ServiceInfo> services;
     private Map<String, List<ServiceInfo>> servicesByClass;
+    private Map<String, List<ServiceInfo>> servicesByInterface;
+    private Map<String, List<ServiceImplementation>> autowiringByClass;
 
     private HiveMindRegistry(Project project) {
         this.project = project;
@@ -149,6 +154,56 @@ public class HiveMindRegistry {
             servicesByClass = result;
         }
         return servicesByClass.getOrDefault(qualifiedClassName, List.of());
+    }
+
+    /** Services mit diesem Interface; geschachtelte Klassen mit {@code .} oder {@code $} ("a.Outer$Inner"). */
+    public synchronized @NotNull List<ServiceInfo> findServicesByInterface(@NotNull String qualifiedInterfaceName) {
+        if (servicesByInterface == null) {
+            final Map<String, List<ServiceInfo>> result = new HashMap<>();
+            for (final ServiceInfo service : getServices()) {
+                result.computeIfAbsent(service.interfaceName().replace('$', '.'), k -> new ArrayList<>()).add(service);
+            }
+            servicesByInterface = result;
+        }
+        return servicesByInterface.getOrDefault(qualifiedInterfaceName.replace('$', '.'), List.of());
+    }
+
+    /**
+     * Konstruktionen mit Autowiring ({@link ServiceImplementation#autowiresServices()}), deren Klasse die angegebene ist
+     * oder von ihr erbt – geerbte Setter ruft HiveMind genauso auf. Berücksichtigt nur Klassen aus dem Projekt; Setter in
+     * Bibliotheken werden ohnehin nicht als unbenutzt markiert.
+     */
+    public synchronized @NotNull List<ServiceImplementation> findAutowiringConstructions(@NotNull String qualifiedClassName) {
+        if (autowiringByClass == null) {
+            final Map<String, List<ServiceImplementation>> result = new HashMap<>();
+            final JavaPsiFacade facade = JavaPsiFacade.getInstance(project);
+            final GlobalSearchScope scope = GlobalSearchScope.projectScope(project);
+            for (final ServiceInfo service : getServices()) {
+                for (final ServiceImplementation implementation : service.implementations()) {
+                    if (!implementation.autowiresServices()) continue;
+                    final Set<PsiClass> visited = new HashSet<>();
+                    for (PsiClass c = facade.findClass(implementation.className(), scope);
+                         c != null && !(c instanceof PsiCompiledElement) && visited.add(c); c = c.getSuperClass()) {
+                        if (c.getQualifiedName() != null) {
+                            result.computeIfAbsent(c.getQualifiedName(), k -> new ArrayList<>()).add(implementation);
+                        }
+                    }
+                }
+            }
+            autowiringByClass = result;
+        }
+        return autowiringByClass.getOrDefault(qualifiedClassName, List.of());
+    }
+
+    /**
+     * Setzt die BuilderFactory in dieser Konstruktion eine freie Property des Typs mit einem Service? Wie
+     * {@code Module.containsService(Class)} in HiveMind 1.1: nur wenn vom Modul der Konstruktion aus <em>genau ein</em>
+     * Service mit diesem Interface sichtbar ist – bei keinem oder mehreren bleibt die Property unberührt.
+     */
+    public boolean autowiresService(@NotNull ServiceImplementation construction, @NotNull String qualifiedInterfaceName) {
+        return construction.autowiresServices() && findServicesByInterface(qualifiedInterfaceName).stream()
+                .filter(service -> service.point().isVisibleFrom(construction.module()))
+                .count() == 1;
     }
 
     // ------------------------------------------------------------------ Aufbau

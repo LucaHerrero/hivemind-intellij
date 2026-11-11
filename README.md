@@ -39,6 +39,7 @@ IntelliJ-Plugin für Apache HiveMind 1.1, das Dependency-Injection-Framework hin
 ### Java und Tapestry
 - Navigation aus `registry.getService(...)`, `getConfiguration(...)` und `containsService(...)`
 - Navigation aus `@InjectObject("service:...")`, `<inject object="service:..."/>` und dem Binding-Präfix `hivemind:`
+- Setter, die die BuilderFactory per Autowiring mit einem Service belegt, gelten nicht als unbenutzt – wie in HiveMind nur, wenn vom Modul aus genau ein Service mit dem Parametertyp als Interface sichtbar ist und `autowire-services` nicht `false` ist
 
 ### Navigation
 - Gutter-Icons zwischen Service-Interface, Implementierung und `<service-point>`

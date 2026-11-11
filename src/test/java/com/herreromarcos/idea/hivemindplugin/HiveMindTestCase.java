@@ -1,5 +1,7 @@
 package com.herreromarcos.idea.hivemindplugin;
 
+import com.intellij.codeInsight.daemon.impl.HighlightInfo;
+import com.intellij.codeInspection.deadCode.UnusedDeclarationInspection;
 import com.intellij.lang.annotation.HighlightSeverity;
 import com.intellij.psi.PsiElement;
 import com.intellij.psi.PsiFile;
@@ -22,6 +24,9 @@ import org.jetbrains.annotations.NotNull;
 
 import java.io.File;
 import java.util.List;
+import java.util.Objects;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * Gemeinsames Testprojekt: die echten JARs von Apache HiveMind 1.1.1 ({@code hivemind}, {@code hivemind-lib}) und
@@ -52,6 +57,7 @@ public abstract class HiveMindTestCase extends LightJavaCodeInsightFixtureTestCa
         return WITH_APACHE_LIBRARIES;
     }
     protected static final String CARET = "<caret>";
+    private static final Pattern UNUSED_METHOD = Pattern.compile("Method '(\\w+)\\(.*' is never used");
     protected static final String APP_DESCRIPTOR = "app/META-INF/hivemodule.xml";
 
     @Override
@@ -120,6 +126,18 @@ public abstract class HiveMindTestCase extends LightJavaCodeInsightFixtureTestCa
         return myFixture.doHighlighting().stream()
                 .filter(info -> info.getSeverity().compareTo(minimum) >= 0)
                 .map(info -> info.getDescription())
+                .toList();
+    }
+
+    /** Namen der Methoden in der geöffneten Datei, die die Inspektion "Unused declaration" als unbenutzt meldet. */
+    protected List<String> unusedMethods() {
+        myFixture.enableInspections(new UnusedDeclarationInspection(true));
+        return myFixture.doHighlighting().stream()
+                .map(HighlightInfo::getDescription)
+                .filter(Objects::nonNull)
+                .map(UNUSED_METHOD::matcher)
+                .filter(Matcher::matches)
+                .map(matcher -> matcher.group(1))
                 .toList();
     }
 

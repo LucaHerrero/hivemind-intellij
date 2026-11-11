@@ -43,6 +43,14 @@ public class DemoProjectTest extends HiveMindTestCase {
         }
     }
 
+    /** NewsletterImpl: setClock belegt HiveMind per Autowiring (demo.Clock), für setArchive gibt es keinen Service. */
+    public void testDemoAutowiredSetter() {
+        myFixture.configureFromTempProjectFile("com/example/demo/impl/NewsletterImpl.java");
+        final List<String> unused = unusedMethods();
+        assertDoesntContain(unused, "setClock");
+        assertContainsElements(unused, "setArchive");
+    }
+
     public void testErrorExamplesShowIntendedProblems() throws IOException {
         myFixture.configureFromTempProjectFile("demo/META-INF/fehlerbeispiele.xml");
         final List<String> messages = highlightingMessages(HighlightSeverity.WARNING);

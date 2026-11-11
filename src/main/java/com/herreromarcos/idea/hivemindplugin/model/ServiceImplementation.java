@@ -31,6 +31,17 @@ public record ServiceImplementation(@NotNull XmlTag tag, @NotNull HiveModule mod
         return parent != null && !isDefault() ? HiveMindRegistry.attr(parent, HiveMindConstants.ATTR_IF) : null;
     }
 
+    /**
+     * Verbindet HiveMind freie Properties der erzeugten Instanz mit Services? Nur die BuilderFactory
+     * ({@code <construct class="...">}) tut das, außer bei {@code autowire-services="false"} – der Boolean-Translator von
+     * HiveMind kennt nur genau "true" und "false".
+     */
+    public boolean autowiresServices() {
+        final XmlTag construct = className != null && HiveMindConstants.DEFAULT_FACTORY.equals(factoryId)
+                ? tag.findFirstSubTag(HiveMindConstants.TAG_CONSTRUCT) : null;
+        return construct != null && !"false".equals(HiveMindRegistry.attr(construct, HiveMindConstants.ATTR_AUTOWIRE_SERVICES));
+    }
+
     /** Kurzbeschreibung für die Anzeige: Klasse, sonst die Factory. */
     public @NotNull String describe() {
         if (className != null) return className;

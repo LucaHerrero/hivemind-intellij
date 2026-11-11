@@ -48,6 +48,8 @@ public class HiveMindConstants {
     public static final String ATTR_SYMBOL = "symbol";
     public static final String ATTR_TRANSLATOR = "translator";
     public static final String ATTR_CONTENT_TRANSLATOR = "content-translator";
+    /** {@code <construct autowire-services="false">} schaltet das Autowiring der BuilderFactory ab (Standard: true). */
+    public static final String ATTR_AUTOWIRE_SERVICES = "autowire-services";
 
     public static final String VISIBILITY_PRIVATE = "private";
     public static final String DEFAULT_MODEL = "singleton";
