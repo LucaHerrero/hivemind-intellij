@@ -111,6 +111,11 @@ tasks {
         args(layout.projectDirectory.dir("demo").asFile.absolutePath)
     }
 
+    // DemoProjectTest liest demo/src ein: ohne diese Angabe hält Gradle den Test nach Änderungen an demo/ für aktuell
+    test {
+        inputs.dir("demo/src").withPathSensitivity(PathSensitivity.RELATIVE)
+    }
+
     processResources {
         // mitgelieferte Apache-Bibliotheken → LICENSE und NOTICE gehören ins JAR
         from(files("LICENSE", "NOTICE")) {
